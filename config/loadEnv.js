@@ -1,29 +1,33 @@
-import { appendFileSync, chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { randomBytes } from 'node:crypto';
-import { fileURLToPath } from 'node:url';
+
 import dotenv from 'dotenv';
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
-const envPath = fileURLToPath(new URL('../.env', import.meta.url));
+// Local environment file path
+const envPath = fileURLToPath(
+  new URL('../.env', import.meta.url)
+);
 
-if (!existsSync(envPath)) {
-  writeFileSync(envPath, '', { flag: 'wx', mode: 0o600 });
+// Load .env only in local development
+if (process.env.NODE_ENV !== 'production') {
+  if (existsSync(envPath)) {
+    const result = dotenv.config({
+      path: envPath,
+    });
+
+    if (result.error) {
+      throw new Error(
+        `Could not load environment file: ${result.error.message}`
+      );
+    }
+  }
 }
 
-const result = dotenv.config({ path: envPath });
-
-if (result.error) {
-  throw new Error(`Could not load backend environment file: ${result.error.message}`);
-}
-
-if (process.platform !== 'win32') {
-  chmodSync(envPath, 0o600);
-}
-
+// JWT_SECRET must be configured manually
 if (!process.env.JWT_SECRET?.trim()) {
-  const secret = randomBytes(64).toString('hex');
-  const contents = readFileSync(envPath, 'utf8');
-  const separator = contents.length > 0 && !contents.endsWith('\n') ? '\n' : '';
-
-  appendFileSync(envPath, `${separator}JWT_SECRET=${secret}\n`, { mode: 0o600 });
-  process.env.JWT_SECRET = secret;
+  throw new Error(
+    'JWT_SECRET is missing. Configure it in environment variables.'
+  );
 }
+
+console.log('Environment variables loaded successfully.');
