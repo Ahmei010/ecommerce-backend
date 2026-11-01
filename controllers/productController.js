@@ -152,6 +152,12 @@ export async function listCategories(req, res, next) {
 export async function createProduct(req, res, next) {
   try {
     const body = req.body || {};
+    if (req.file && !req.file.filename) {
+      return res.status(503).json({
+        success: false,
+        message: 'Image uploads require persistent object storage in production. Provide an image URL instead.',
+      });
+    }
     const image = imagePathFromRequest(req);
     const validationMessage = validateProductInput(body, image);
 
@@ -190,6 +196,12 @@ export async function createProduct(req, res, next) {
 export async function updateProduct(req, res, next) {
   try {
     const body = req.body || {};
+    if (req.file && !req.file.filename) {
+      return res.status(503).json({
+        success: false,
+        message: 'Image uploads require persistent object storage in production. Provide an image URL instead.',
+      });
+    }
     if (!mongoose.isValidObjectId(req.params.id)) {
       removeUploadedImage(imagePathFromRequest(req));
       return res.status(404).json({ success: false, message: 'Product not found.' });

@@ -12,10 +12,19 @@
 3. Copy the Node.js connection string from **Connect → Drivers**.
 4. Copy `.env.example` to `.env` inside this `backend` directory.
 5. Set `MONGO_URI` to the connection string. Replace its username/password placeholders, URL-encoding special characters in the password. The backend selects the `ecommerce` database.
-6. Set `JWT_SECRET` to a long random value, or leave it empty so the backend creates and saves a cryptographically secure secret on first startup.
+6. Set `JWT_SECRET` to a long, random value. The backend does not generate or save secrets automatically.
 7. Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` for the one-time administrator seed. The requested initial account is `admin@gmail.com` / `admin123`; change that password after setup.
 
 The `.env` file contains credentials and is excluded by `.gitignore`. Do not commit it.
+
+## Deploy to Vercel
+
+1. Import the GitHub repository into Vercel and set **Root Directory** to `backend`.
+2. Configure `MONGO_URI`, `JWT_SECRET`, and `FRONTEND_URL` in the Vercel project settings for the Production environment. `FRONTEND_URL` must be the exact deployed frontend origin, without a trailing path.
+3. Keep the framework preset on **Other** and deploy. `vercel.json` routes requests to the Express serverless function; the function does not call `app.listen()`.
+4. Verify `GET /api/health` returns `200` with `data.database` set to `connected`.
+
+Vercel's function filesystem is not persistent. Product image uploads are saved locally only during development; in production, use an image URL for products until persistent object storage is configured.
 
 ## Install and run
 
