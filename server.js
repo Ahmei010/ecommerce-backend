@@ -20,12 +20,39 @@ const backendDirectory = fileURLToPath(
   new URL('.', import.meta.url)
 );
 
-// CORS Configuration
+const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
+const configuredFrontendOrigin = process.env.FRONTEND_URL || process.env.CLIENT_URL;
+
+function getFrontendOrigin() {
+  if (!configuredFrontendOrigin) {
+    if (isProduction) {
+      throw new Error('FRONTEND_URL must be configured in production.');
+    }
+
+    return 'http://localhost:5173';
+  }
+
+  let parsedOrigin;
+  try {
+    parsedOrigin = new URL(configuredFrontendOrigin);
+  } catch {
+    throw new Error('FRONTEND_URL must be a valid frontend origin.');
+  }
+
+  const isLoopback = ['localhost', '127.0.0.1', '[::1]'].includes(parsedOrigin.hostname);
+  if (
+    !['http:', 'https:'].includes(parsedOrigin.protocol) ||
+    parsedOrigin.origin !== configuredFrontendOrigin ||
+    (isProduction && isLoopback)
+  ) {
+    throw new Error('FRONTEND_URL must be an exact, non-local frontend origin in production.');
+  }
+
+  return configuredFrontendOrigin;
+}
+
 app.use(cors({
-  origin:
-    process.env.FRONTEND_URL ||
-    process.env.CLIENT_URL ||
-    'http://localhost:5173',
+  origin: getFrontendOrigin(),
   credentials: true,
 }));
 
@@ -40,6 +67,15 @@ if (process.env.NODE_ENV !== 'production') {
     express.static(path.join(backendDirectory, 'uploads'))
   );
 }
+
+app.get('/', (req, res) => {
+  return res.status(200).json({
+    api: 'SHOP.CO E-commerce API',
+    status: 'ok',
+    message: 'API is running.',
+    environment: process.env.NODE_ENV || (isProduction ? 'production' : 'development'),
+  });
+});
 
 // MongoDB connection caching for Vercel
 let dbConnectionPromise = null;
@@ -64,24 +100,26 @@ const ensureDBConnection = async () => {
   await dbConnectionPromise;
 };
 
-// Health Check API
-app.get('/api/health', async (req, res) => {
+async function healthCheck(req, res) {
   try {
     await ensureDBConnection();
     return res.status(200).json({
       success: true,
       message: 'Backend is running successfully.',
-      data: { database: 'connected' },
+      data: { application: 'running', database: 'connected' },
     });
   } catch (error) {
     console.error(`Health check database connection failed: ${error.message}`);
     return res.status(503).json({
       success: false,
       message: 'Backend is running but the database is unavailable.',
-      data: { database: 'disconnected' },
+      data: { application: 'running', database: 'disconnected' },
     });
   }
-});
+}
+
+app.get('/health', healthCheck);
+app.get('/api/health', healthCheck);
 
 // Connect database before handling API requests
 app.use(async (req, res, next) => {
